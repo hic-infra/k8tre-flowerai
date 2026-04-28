@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superlink
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate 
+  selector:
+    matchLabels:
+      app: superlink
+  template:
+    metadata:
+      labels:
+        app: superlink
+    spec:
+      containers:
+        - name: superlink
+          image: docker.io/flwr/superlink:1.29.0
+          args:
+            - --insecure
+            - --isolation
+            - process
+            - --database
+            - /superlink/state.db
+            - --health-server-address
+            - 0.0.0.0:9100
+          env:
+            - name: FLWR_LOG_LEVEL
+              value: DEBUG
+          ports:
+            - name: serverappio
+              containerPort: 9091
+            - name: fleet
+              containerPort: 9092
+            - name: control
+              containerPort: 9093
+            - name: health
+              containerPort: 9100
+          livenessProbe:
+            grpc:
+              port: 9100
+            initialDelaySeconds: 10
+          volumeMounts:
+            - name: superlink-state
+              mountPath: /superlink
+      securityContext:
+        # Override the group id of the volume (default is root)
+        fsGroup: 49999
+        # Only run a recursive chmod to fix permissions the first time
+        fsGroupChangePolicy: OnRootMismatch
+      volumes:
+        - name: superlink-state
+          persistentVolumeClaim:
+            claimName: superlink

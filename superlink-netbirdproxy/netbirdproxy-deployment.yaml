@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netbirdproxy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate 
+  selector:
+    matchLabels:
+      app: netbirdproxy
+  template:
+    metadata:
+      labels:
+        app: netbirdproxy
+    spec:
+      containers:
+
+        - name: proxy
+          # image: docker.io/library/haproxy:3.3.7-alpine
+          image: docker.io/library/haproxy:3.3.7
+          ports:
+            - containerPort: 9091
+            - containerPort: 9092
+            - containerPort: 9093
+            - name: stats
+              containerPort: 8404
+          volumeMounts:
+            - name: proxy-config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+
+        # - name: dnsmasq
+        #   image: docker.io/4km3/dnsmasq:2.90-r3
+        #   ports:
+        #     - containerPort: 53
+
+        - name: netbird
+          image: docker.io/netbirdio/netbird:0.70.0
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          env:
+            - name: NB_MANAGEMENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: netbirdproxy-params
+                  key: management-url
+            - name: NB_SETUP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: netbirdproxy-secrets
+                  key: setup-key
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "netbird status | grep -q 'Connected'"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: netbird-storage
+              mountPath: /var/lib/netbird
+      volumes:
+        - name: proxy-config
+          configMap:
+            name: netbirdproxy
+        - name: netbird-storage
+          persistentVolumeClaim:
+            claimName: netbirdproxy

@@ -1,0 +1,67 @@
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: netbirdproxy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: netbirdproxy
+
+  # ‼️ WARNING ‼️
+  # We patch NETBIRD_MANAGEMENT_URL in kustomization.yaml
+  # All array indices in this YAML are hard-coded
+  # If you modify this file make sure you update kustomization.yaml
+  egress:
+    # Force Cilium to inspect DNS to build the identity map
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+
+    # Netbird Managment node
+    - toFQDNs:
+        # Patched in kustomization.yaml
+        - matchName: NETBIRD_MANAGEMENT_URL
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    
+    # FlowerAI Superlink
+    - toEndpoints:
+        - matchLabels:
+            app: superlink
+      toPorts:
+        - ports:
+            - port: "9091"
+              protocol: TCP
+            - port: "9092"
+              protocol: TCP
+            - port: "9093"
+              protocol: TCP
+            - port: "9100"
+              protocol: TCP
+
+  # Ingress is only needed if we have in-cluster clients or supernodes
+  # If everything is via the Netbird then we could disable all ingress
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            # Restrict ingress to same namespace
+            {}
+      toPorts:
+        - ports:
+            - port: "9091"
+              protocol: TCP
+            - port: "9092"
+              protocol: TCP
+            - port: "9093"
+              protocol: TCP

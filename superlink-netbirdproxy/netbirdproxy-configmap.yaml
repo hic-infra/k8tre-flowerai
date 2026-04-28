@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: netbirdproxy
+data:
+  haproxy.cfg: |
+    global
+      # Log to stdout for kubectl logs
+      log stdout format raw local0 debug
+
+    # Define a reusable log profile
+    log-profile netbird_debug
+      on accept format "Incoming request from %ci:%cp"
+      on connect format "Tunnel established to Netbird resource: %si:%sp"
+      on close format "Closed: %b/%s (Total bytes: %B)"
+
+    defaults
+      mode http
+      timeout connect 5s
+      timeout client 50s
+      timeout server 50s
+      # Apply our profile by default
+      log stdout format raw profile netbird_debug daemon info
+
+    # # Use dnsmasq for dynamic DNS lookups
+    # resolvers local_dns
+    #   # nameserver dnsmasq 127.0.0.1:53
+    #   parse-resolv-conf
+
+    # https://www.haproxy.com/documentation/haproxy-configuration-tutorials/protocol-support/grpc/
+
+    listen flowerai-serverappio-grpc
+      bind *:9091 proto h2
+      # Increase timeouts for long-running gRPC streaming and training rounds
+      timeout client 1h
+      timeout server 1h
+      server remote_target superlink:9091 check port 9100 proto h2
+
+    listen flowerai-fleet-grpc
+      bind *:9092 proto h2
+      timeout client 1h
+      timeout server 1h
+      server remote_target superlink:9092 check port 9100 proto h2
+
+    listen flowerai-control-grpc
+      bind *:9093 proto h2
+      timeout client 1h
+      timeout server 1h
+      server remote_target superlink:9093 check port 9100 proto h2
+
+    listen stats
+      bind *:8404
+      mode http
+      stats enable
+      stats uri /stats
+      stats refresh 10s

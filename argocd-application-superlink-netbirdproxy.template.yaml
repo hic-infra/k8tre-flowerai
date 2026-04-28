@@ -1,0 +1,50 @@
+# https://argo-cd.readthedocs.io/en/stable/user-guide/application-specification/
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flowerai-superlink-netbirdproxy
+  # Namespace where ArgoCD is installed
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/foreground
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/hic-infra/k8tre-flowerai.git
+      targetRevision: main
+      path: superlink-netbirdproxy
+      # directory:
+      #   recurse: true
+      kustomize:
+        patches:
+          - target:
+              kind: ConfigMap
+              name: netbirdproxy-params
+            patch: |-
+              - op: replace
+                path: /data/management-url
+                value: https://netbird.example.org
+              - op: replace
+                path: /data/management-host
+                value: netbird.example.org
+
+  destination:
+    # Change this if ArgoCD is in a different cluster from the target one
+    # that the application should be deployed in
+    name: in-cluster
+    # Namespace that the application should be deployed in
+    namespace: flowerai
+  syncPolicy:
+    automated:
+      # Delete resources that are no longer defined in Git
+      prune: true
+      # Sync when drift is detected
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+  # Extra information shown in the Argo CD Application details
+  info:
+    - name: Repository
+      value: https://github.com/hic-infra/k8tre-flowerai
