@@ -11,17 +11,21 @@ data:
 
     # Define a reusable log profile
     log-profile netbird_debug
-      on accept format "Incoming request from %ci:%cp"
-      on connect format "Tunnel established to Netbird resource: %si:%sp"
-      on close format "Closed: %b/%s (Total bytes: %B)"
+      on accept format "Accepting request from %ci:%cp"
+      on connect format "Connect to: %si:%sp"
+      on close format "Closed: %ci:%cp-%si:%sp %b/%s (Total bytes: %B)"
 
     defaults
       mode http
       timeout connect 5s
-      timeout client 50s
-      timeout server 50s
+      # Increase timeouts for long-running gRPC streams
+      timeout client 1h
+      timeout server 1h
+
       # Apply our profile by default
-      log stdout format raw profile netbird_debug daemon info
+      log stdout format raw profile netbird_debug daemon debug
+      # grpc uses http2, so can treat as http
+      option httplog
 
     # # Use dnsmasq for dynamic DNS lookups
     # resolvers local_dns
@@ -32,21 +36,20 @@ data:
 
     listen flowerai-serverappio-grpc
       bind *:9091 proto h2
-      # Increase timeouts for long-running gRPC streaming and training rounds
-      timeout client 1h
-      timeout server 1h
+      # log-steps all
+      log-steps request,close
       server remote_target superlink:9091 check port 9100 proto h2
 
     listen flowerai-fleet-grpc
       bind *:9092 proto h2
-      timeout client 1h
-      timeout server 1h
+      # log-steps all
+      log-steps request,close
       server remote_target superlink:9092 check port 9100 proto h2
 
     listen flowerai-control-grpc
       bind *:9093 proto h2
-      timeout client 1h
-      timeout server 1h
+      # log-steps all
+      log-steps request,close
       server remote_target superlink:9093 check port 9100 proto h2
 
     listen stats

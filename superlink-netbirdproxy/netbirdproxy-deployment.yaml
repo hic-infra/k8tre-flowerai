@@ -35,12 +35,20 @@ spec:
         #   ports:
         #     - containerPort: 53
 
+        # https://docs.netbird.io/use-cases/cloud/routing-peers-and-kubernetes#step-4-deploy-the-net-bird-agent
         - name: netbird
-          image: docker.io/netbirdio/netbird:0.70.0
+          image: docker.io/netbirdio/netbird:0.70.1
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
           env:
+            - name: NB_LOG_LEVEL
+              value: info
+            # - name: NB_HOSTNAME
+            #   valueFrom:
+            #     configMapKeyRef:
+            #       name: netbirdproxy-params
+            #       key: client-hostname
             - name: NB_MANAGEMENT_URL
               valueFrom:
                 configMapKeyRef:
@@ -51,11 +59,29 @@ spec:
                 secretKeyRef:
                   name: netbirdproxy-secrets
                   key: setup-key
+          livenessProbe:
+            exec:
+              # checks that the daemon process is responsive
+              command: ["netbird", "status", "--check", "live"]
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             exec:
-              command: ["/bin/sh", "-c", "netbird status | grep -q 'Connected'"]
-            initialDelaySeconds: 5
-            periodSeconds: 5
+              # checks that the client is not in an authentication-required state
+              command: ["netbird", "status", "--check", "ready"]
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            exec:
+              # checks that management, signal and optionally relay are connected
+              command: ["netbird", "status", "--check", "startup"]
+            periodSeconds: 2
+            timeoutSeconds: 10
+            failureThreshold: 30
           volumeMounts:
             - name: netbird-storage
               mountPath: /var/lib/netbird
