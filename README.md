@@ -10,26 +10,41 @@ Deploy a FlowerAI SuperLink fronted by a NetBird proxy (ambassador pattern)
 
 The ArgoCD Application requires some configuration.
 Edit [`argocd-application-superlink-netbirdproxy.template.yaml`](./argocd-application-superlink-netbirdproxy.template.yaml):
+
 - Replace `https://netbird.example.org` and `netbird.example.org` with your Netbird management URL
   (the Netbird client will connect to this) and host (used for allow-listing the Netbird managment host in a network policy).
 - Set `spec.destination.name` if you are deploying the application in a different cluster from where ArgoCD is running
 - Set `spec.destination.namespace` to change the Kubernetes namespace
 
 Deploy the Application:
+
 ```sh
 kubectl -n argocd apply -f argocd-application-superlink-netbirdproxy.yaml
 ```
 
 Create a secret `netbirdproxy-secrets` containing your Netbird `setup-key` (replace `flowerai` with your namespace):
+
 ```sh
 kubectl -nflowerai create secret generic netbirdproxy-secrets --from-literal=setup-key=SETUP_KEY
 ```
 
-## Verifying the superlink connection
+## Verifying connections
+
+Check the proxy pod can connect to the Netbird management node:
+
+```sh
+kubectl -nflowerai exec deploy/netbirdproxy -cproxy -- openssl s_client -connect netbird.example.org:443 -quiet
+```
+
+Check the Flower client can connect to the superlink.
+You can replace `flwr/superlink` with any image that has the Flower CLI.
 
 ```sh
 kubectl -nflowerai run flower-debug -it --rm --image=flwr/superlink:latest --command /bin/bash
 ```
+
+Inside the pod create the Flower configuration file.
+If you're connecting over Netbird change `address = "netbirdproxy:9093"` to whatever the netbird hostname is for the Netbird superlink proxy.
 
 ```sh
 mkdir -p ~/.flwr
@@ -39,11 +54,13 @@ cat << EOF > ~/.flwr/config.toml
 address = "netbirdproxy:9093"
 insecure = true
 EOF
-
-flwr supernode list test
 ```
 
-If you're connecting over Netbird change `address = "netbirdproxy:9093"` to whatever the netbird hostname is for the Netbird superlink proxy.
+Check you can list all nodes by querying the superlink:
+
+```sh
+flwr supernode list test
+```
 
 To view the Haproxy statistics:
 

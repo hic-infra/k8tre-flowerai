@@ -1,3 +1,4 @@
+---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -12,10 +13,10 @@ resources:
   - superlink-service.yaml
 
 configMapGenerator:
-- name: netbirdproxy-params
-  literals:
-    - management-url=THIS_WILL_BE_REPLACED_BY_ARGOCD
-    - management-host=THIS_WILL_BE_REPLACED_BY_ARGOCD
+  - name: netbirdproxy-params
+    literals:
+      - management-url=THIS_WILL_BE_REPLACED_BY_ARGOCD
+      - management-host=THIS_WILL_BE_REPLACED_BY_ARGOCD
 
 # Patch netbirdproxy-networkpolicy to allow egress to management-host
 replacements:

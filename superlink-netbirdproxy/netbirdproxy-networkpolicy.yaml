@@ -34,7 +34,7 @@ spec:
         - ports:
             - port: "443"
               protocol: TCP
-    
+
     # FlowerAI Superlink
     - toEndpoints:
         - matchLabels:

@@ -6,7 +6,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate 
+    type: Recreate
   selector:
     matchLabels:
       app: netbirdproxy
@@ -16,7 +16,6 @@ spec:
         app: netbirdproxy
     spec:
       containers:
-
         - name: proxy
           # image: docker.io/library/haproxy:3.3.7-alpine
           image: docker.io/library/haproxy:3.3.7
